@@ -9,7 +9,7 @@ plugins {
     id("org.springframework.boot") version PluginVersions.SPRING_BOOT
     id("io.spring.dependency-management") version PluginVersions.SPRING_DEPENDENCY_MANAGEMENT
     id("org.jooq.jooq-codegen-gradle") version PluginVersions.JOOQ
-//    id("com.epages.restdocs-api-spec") version PluginVersions.RESTDOCS_API_SPEC
+    id("com.epages.restdocs-api-spec") version PluginVersions.RESTDOCS_API_SPEC
 }
 
 group = "org.test"
@@ -30,7 +30,7 @@ configurations {
 configurations.matching { it.name.startsWith("detekt") }.configureEach {
     resolutionStrategy.eachDependency {
         if (requested.group == "org.jetbrains.kotlin") {
-            useVersion("2.3.0")
+            useVersion("2.4.10")
             because("detekt must run with the Kotlin compiler version it was built against")
         }
     }
@@ -51,46 +51,53 @@ dependencies {
     implementation("io.projectreactor.kotlin:reactor-kotlin-extensions")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-slf4j")
     implementation("tools.jackson.module:jackson-module-kotlin")
 
+    implementation(
+        "net.logstash.logback:logstash-logback-encoder:${DependencyVersions.LOGSTASH_LOGBACK_ENCODER}",
+    )
+
     runtimeOnly("com.h2database:h2")
-    jooqCodegen("com.h2database:h2")
-    jooqCodegen("org.jooq:jooq-meta-extensions")
+    runtimeOnly("org.postgresql:postgresql")
+    jooqCodegen("org.postgresql:postgresql")
+    jooqCodegen("org.testcontainers:testcontainers-postgresql:${DependencyVersions.TESTCONTAINERS}")
+    jooqCodegen(files("src/main/resources"))
 
     annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testImplementation("org.springframework.restdocs:spring-restdocs-webtestclient")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
+    testImplementation("com.epages:restdocs-api-spec:${PluginVersions.RESTDOCS_API_SPEC}") {
+        exclude(group = "org.springframework.boot", module = "spring-boot-starter-web")
+    }
+    testImplementation("com.epages:restdocs-api-spec-webtestclient:${PluginVersions.RESTDOCS_API_SPEC}") {
+        exclude(group = "org.springframework.boot", module = "spring-boot-starter-web")
+    }
 
     testImplementation("io.projectreactor:reactor-test")
     testImplementation("io.mockk:mockk:${DependencyVersions.MOCKK}")
+    testRuntimeOnly("org.testcontainers:testcontainers-postgresql:${DependencyVersions.TESTCONTAINERS}")
 
     detektPlugins("dev.detekt:detekt-rules-ktlint-wrapper:${PluginVersions.DETEKT}")
 }
 
 val jooqGeneratedDir = layout.buildDirectory.dir("generated-src/jooq/main")
+val postgresqlTestcontainerJdbcUrl = "jdbc:tc:postgresql:18-alpine:///skeletondb?TC_INITSCRIPT=db/schema.sql"
 
 jooq {
     configuration {
+        jdbc {
+            driver = "org.testcontainers.jdbc.ContainerDatabaseDriver"
+            url = postgresqlTestcontainerJdbcUrl
+        }
         generator {
             name = "org.jooq.codegen.KotlinGenerator"
             database {
-                name = "org.jooq.meta.extensions.ddl.DDLDatabase"
-                properties {
-                    property {
-                        key = "scripts"
-                        value = "src/jooq/schema.sql"
-                    }
-                    property {
-                        key = "defaultNameCase"
-                        value = "lower"
-                    }
-                    property {
-                        key = "unqualifiedSchema"
-                        value = "none"
-                    }
-                }
+                name = "org.jooq.meta.postgres.PostgresDatabase"
+                inputSchema = "public"
             }
             generate {
                 isDeprecated = false
@@ -154,10 +161,10 @@ tasks.named("compileKotlin") {
     dependsOn(tasks.named("jooqCodegen"))
 }
 
-//openapi3 {
-//    setServer("http://localhost:8080")
-//    title = "My API"
-//    description = "My API description"
-//    version = "0.1.0"
-//    format = "yaml"
-//}
+openapi3 {
+    setServer("http://localhost:18080")
+    title = "Skeleton Sample API"
+    description = "Spring WebFlux 기반 Sample API"
+    version = "1.0.0"
+    format = "yaml"
+}

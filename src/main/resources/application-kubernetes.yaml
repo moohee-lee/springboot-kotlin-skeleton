@@ -1,0 +1,14 @@
+spring:
+  config:
+    import:
+      - "kubernetes:"
+  cloud:
+    kubernetes:
+      config:
+        enabled: true
+        namespace: ${KUBERNETES_NAMESPACE}
+        sources:
+          - name: kcp-network-skeleton
+            namespace: ${KUBERNETES_NAMESPACE}
+          - name: kcp-network-postgres
+            namespace: ${KUBERNETES_NAMESPACE}

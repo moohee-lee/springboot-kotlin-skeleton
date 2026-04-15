@@ -1,0 +1,17 @@
+spring:
+  config:
+    import:
+      - vault://secret/mgmt01/ns-vpc/postgresql?prefix=db.
+  cloud:
+    vault:
+      uri: https://secret-dx-dev-md.ktcloudinfra.com
+      authentication: kubernetes
+      kubernetes:
+        role: role-vpc
+        kubernetes-path: mgmt01
+
+logging:
+  level:
+    com.ktcloud.network.consumer: DEBUG
+    org.springframework.transaction: DEBUG
+    org.springframework.web.reactive.function.client: DEBUG

@@ -1,5 +1,9 @@
 package com.example.skeleton.common.extensions
 
+import com.example.skeleton.common.errors.CommonErrorCode
+import com.example.skeleton.common.errors.ErrorSource
+import com.example.skeleton.common.exception.InvalidEnumPathParameterException
+import com.example.skeleton.common.exception.InvalidRequestFieldException
 import com.example.skeleton.common.exception.QueryParameterBindingException
 import com.example.skeleton.common.exception.RequiredHeaderException
 import kotlinx.coroutines.reactor.awaitSingleOrNull
@@ -9,6 +13,17 @@ import org.springframework.web.reactive.function.server.ServerRequest
 import kotlin.reflect.KClass
 import kotlin.reflect.KParameter
 import kotlin.reflect.full.primaryConstructor
+import kotlin.uuid.Uuid
+
+// ── Path Variable ────────────────────────────────────────────────────────
+// Enum path variable 바인딩 예시: request.enumPathVariable<SampleStatus>("status")
+inline fun <reified E : Enum<E>> ServerRequest.enumPathVariable(name: String): E = try {
+    enumValueOf<E>(pathVariable(name).uppercase())
+} catch (_: IllegalArgumentException) {
+    throw InvalidEnumPathParameterException(name)
+}
+
+// ── Header ───────────────────────────────────────────────────────────────
 
 suspend inline fun <reified T : Any> ServerRequest.bindQueryParams(): T = bindQueryParams(T::class)
 
@@ -18,6 +33,22 @@ suspend inline fun <reified T : Any> ServerRequest.bindQueryParams(
 
 fun ServerRequest.headerOrThrow(name: String): String =
     this.headers().firstHeader(name) ?: throw RequiredHeaderException(name)
+
+fun ServerRequest.uuidHeaderOrThrow(name: String): Uuid {
+    val value = headerOrThrow(name)
+    return runCatching { Uuid.parse(value) }
+        .getOrElse { throw RequiredHeaderException(name) }
+}
+
+fun ServerRequest.uuidPathVariableOrThrow(name: String): Uuid = runCatching { Uuid.parse(pathVariable(name)) }
+    .getOrElse { error ->
+        throw InvalidRequestFieldException(
+            source = ErrorSource.PATH,
+            field = name,
+            errorCode = CommonErrorCode.INVALID_PARAMETER,
+            cause = error,
+        )
+    }
 
 suspend fun <T : Any> ServerRequest.bindQueryParams(clazz: KClass<T>): T = bindQueryParams(clazz) { }
 
@@ -40,15 +71,20 @@ private fun resolveBindField(exception: BindException): String =
 
 private fun <T : Any> ServerRequest.resolveQueryField(clazz: KClass<T>): String {
     val queryFields = queryParams().keys
-    val constructorFields = clazz.primaryConstructor
-        ?.parameters
-        ?.filter { parameter -> !parameter.isOptional && !parameter.type.isMarkedNullable }
-        ?.mapNotNull(KParameter::name)
-        .orEmpty()
+    val constructorParams = clazz.primaryConstructor?.parameters.orEmpty()
+    val requiredFields = constructorParams
+        .filter { parameter -> !parameter.isOptional && !parameter.type.isMarkedNullable }
+        .mapNotNull(KParameter::name)
 
-    return constructorFields.firstOrNull { it !in queryFields }
-        ?: queryFields.firstOrNull()
-        ?: clazz.primaryConstructor?.parameters?.firstNotNullOfOrNull(KParameter::name)
+    // 1. 누락된 required 필드가 있으면 해당 필드 반환
+    val missingField = requiredFields.firstOrNull { it !in queryFields }
+    if (missingField != null) return missingField
+
+    // 2. 모든 required 필드가 전달된 경우 (타입 변환 실패 등)
+    //    전달된 query parameter 중 constructor에 매칭되는 것을 반환
+    val allParamNames = constructorParams.mapNotNull(KParameter::name)
+    return queryFields.firstOrNull { it in allParamNames }
+        ?: allParamNames.firstOrNull()
         ?: clazz.simpleName
         ?: "query"
 }
