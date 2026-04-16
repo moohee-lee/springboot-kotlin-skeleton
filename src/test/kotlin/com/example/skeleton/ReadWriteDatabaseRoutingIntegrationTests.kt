@@ -1,6 +1,7 @@
 package com.example.skeleton
 
 import com.example.skeleton.common.constant.CommonConstant.API_VERSION_V1
+import com.example.skeleton.domain.sample.model.SampleStatus
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -44,8 +45,8 @@ class ReadWriteDatabaseRoutingIntegrationTests {
         writeJdbcTemplate.update("DELETE FROM samples")
         readJdbcTemplate.update("DELETE FROM samples")
 
-        writeJdbcTemplate.update("INSERT INTO samples (name, age, status) VALUES ('writer-only', 11, 'active')")
-        readJdbcTemplate.update("INSERT INTO samples (name, age, status) VALUES ('reader-only', 22, 'active')")
+        writeJdbcTemplate.update("INSERT INTO samples (name, age, status) VALUES ('writer-only', 11, '${SampleStatus.ACTIVE.value}')")
+        readJdbcTemplate.update("INSERT INTO samples (name, age, status) VALUES ('reader-only', 22, '${SampleStatus.ACTIVE.value}')")
     }
 
     @Test

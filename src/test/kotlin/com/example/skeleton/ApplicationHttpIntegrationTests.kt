@@ -1,9 +1,11 @@
 package com.example.skeleton
 
+import com.example.skeleton.common.config.TraceIdWebFilter.Companion.TRACE_ID_HEADER
 import com.example.skeleton.common.constant.CommonConstant.API_VERSION_V1
 import com.example.skeleton.common.errors.CommonErrorCode
 import com.example.skeleton.common.errors.ErrorSource
 import com.example.skeleton.common.errors.SampleErrorCode
+import com.example.skeleton.domain.sample.model.SampleStatus
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -54,20 +56,20 @@ class ApplicationHttpIntegrationTests {
         webTestClient.post()
             .uri("/sample/$API_VERSION_V1/samples")
             .contentType(MediaType.APPLICATION_JSON)
-            .bodyValue("""{"name":"Alice","age":30,"status":"ACTIVE"}""")
+            .bodyValue("""{"name":"Alice","age":30,"status":"${SampleStatus.ACTIVE.name}"}""")
             .exchange()
             .expectStatus().isOk
             .expectBody()
             .jsonPath("$.id").isNotEmpty
             .jsonPath("$.name").isEqualTo("Alice")
             .jsonPath("$.age").isEqualTo(30)
-            .jsonPath("$.status").isEqualTo("ACTIVE")
+            .jsonPath("$.status").isEqualTo(SampleStatus.ACTIVE.name)
     }
 
     @Test
     fun `GET by id returns existing sample`() {
         // GET 은 read DB 에서 조회
-        readJdbc.update("INSERT INTO samples (id, name, age, status) VALUES (1, 'Bob', 25, 'active')")
+        readJdbc.update("INSERT INTO samples (id, name, age, status) VALUES (1, 'Bob', 25, '${SampleStatus.ACTIVE.value}')")
 
         webTestClient.get()
             .uri("/sample/$API_VERSION_V1/samples/1")
@@ -82,9 +84,9 @@ class ApplicationHttpIntegrationTests {
     @Test
     fun `GET search with query params filters results`() {
         // GET 은 read DB 에서 조회
-        readJdbc.update("INSERT INTO samples (name, age, status) VALUES ('Alice', 30, 'active')")
-        readJdbc.update("INSERT INTO samples (name, age, status) VALUES ('Bob', 20, 'inactive')")
-        readJdbc.update("INSERT INTO samples (name, age, status) VALUES ('Charlie', 40, 'active')")
+        readJdbc.update("INSERT INTO samples (name, age, status) VALUES ('Alice', 30, '${SampleStatus.ACTIVE.value}')")
+        readJdbc.update("INSERT INTO samples (name, age, status) VALUES ('Bob', 20, '${SampleStatus.INACTIVE.value}')")
+        readJdbc.update("INSERT INTO samples (name, age, status) VALUES ('Charlie', 40, '${SampleStatus.ACTIVE.value}')")
 
         webTestClient.get()
             .uri("/sample/$API_VERSION_V1/samples?minAge=25&maxAge=35")
@@ -99,13 +101,13 @@ class ApplicationHttpIntegrationTests {
     @Test
     fun `PUT updates an existing sample`() {
         // PUT 은 write DB 에서 수정
-        writeJdbc.update("INSERT INTO samples (id, name, age, status) VALUES (1, 'Old', 10, 'active')")
+        writeJdbc.update("INSERT INTO samples (id, name, age, status) VALUES (1, 'Old', 10, '${SampleStatus.ACTIVE.value}')")
 
         webTestClient.put()
             .uri("/sample/$API_VERSION_V1/samples/1")
             .header("X-Modified-By", "tester")
             .contentType(MediaType.APPLICATION_JSON)
-            .bodyValue("""{"name":"Updated","age":99,"status":"INACTIVE"}""")
+            .bodyValue("""{"name":"Updated","age":99,"status":"${SampleStatus.INACTIVE.name}"}""")
             .exchange()
             .expectStatus().isOk
             .expectBody()
@@ -117,7 +119,7 @@ class ApplicationHttpIntegrationTests {
     @Test
     fun `DELETE removes an existing sample`() {
         // DELETE 는 write DB 에서 삭제
-        writeJdbc.update("INSERT INTO samples (id, name, age, status) VALUES (1, 'ToDelete', 1, 'active')")
+        writeJdbc.update("INSERT INTO samples (id, name, age, status) VALUES (1, 'ToDelete', 1, '${SampleStatus.ACTIVE.value}')")
 
         webTestClient.delete()
             .uri("/sample/$API_VERSION_V1/samples/1")
@@ -133,7 +135,7 @@ class ApplicationHttpIntegrationTests {
             .uri("/sample/$API_VERSION_V1/samples/999")
             .exchange()
             .expectStatus().isNotFound
-            .expectHeader().exists("X-Trace-Id")
+            .expectHeader().exists(TRACE_ID_HEADER)
             .expectBody()
             .jsonPath("$.code").isEqualTo(SampleErrorCode.SAMPLE_NOT_FOUND.code)
             .jsonPath("$.traceId").exists()
@@ -144,7 +146,7 @@ class ApplicationHttpIntegrationTests {
         webTestClient.put()
             .uri("/sample/$API_VERSION_V1/samples/1")
             .contentType(MediaType.APPLICATION_JSON)
-            .bodyValue("""{"name":"Test","age":20,"status":"ACTIVE"}""")
+            .bodyValue("""{"name":"Test","age":20,"status":${SampleStatus.ACTIVE.name}}""")
             .exchange()
             .expectStatus().isBadRequest
             .expectBody()
@@ -170,7 +172,7 @@ class ApplicationHttpIntegrationTests {
         webTestClient.post()
             .uri("/sample/$API_VERSION_V1/samples")
             .contentType(MediaType.APPLICATION_JSON)
-            .bodyValue("""{"name":"","age":-1,"status":"ACTIVE"}""")
+            .bodyValue("""{"name":"","age":-1,"status":"${SampleStatus.ACTIVE.name}"}""")
             .exchange()
             .expectStatus().isBadRequest
             .expectBody()
@@ -219,7 +221,7 @@ class ApplicationHttpIntegrationTests {
             .uri("/unknown")
             .exchange()
             .expectStatus().isNotFound
-            .expectHeader().exists("X-Trace-Id")
+            .expectHeader().exists(TRACE_ID_HEADER)
             .expectBody()
             .jsonPath("$.code").isEqualTo(CommonErrorCode.NOT_FOUND.code)
             .jsonPath("$.traceId").exists()
@@ -230,10 +232,10 @@ class ApplicationHttpIntegrationTests {
         val traceId = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
         webTestClient.get()
             .uri("/unknown")
-            .header("X-Trace-Id", traceId)
+            .header(TRACE_ID_HEADER, traceId)
             .exchange()
             .expectStatus().isNotFound
-            .expectHeader().valueEquals("X-Trace-Id", traceId)
+            .expectHeader().valueEquals(TRACE_ID_HEADER, traceId)
             .expectBody()
             .jsonPath("$.traceId").isEqualTo(traceId)
     }
