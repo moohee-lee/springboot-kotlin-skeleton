@@ -1,5 +1,6 @@
 package com.example.skeleton
 
+import com.example.skeleton.adapter.input.web.sample.protocol.SampleResponse
 import com.example.skeleton.common.constant.CommonConstant.API_VERSION_V1
 import com.example.skeleton.domain.sample.model.SampleStatus
 import org.junit.jupiter.api.BeforeEach
@@ -12,7 +13,10 @@ import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.annotation.DirtiesContext
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.web.reactive.server.WebTestClient
+import org.springframework.test.web.reactive.server.expectBodyList
 import javax.sql.DataSource
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
@@ -45,8 +49,8 @@ class ReadWriteDatabaseRoutingIntegrationTests {
         writeJdbcTemplate.update("DELETE FROM samples")
         readJdbcTemplate.update("DELETE FROM samples")
 
-        writeJdbcTemplate.update("INSERT INTO samples (name, age, status) VALUES ('writer-only', 11, '${SampleStatus.ACTIVE.value}')")
-        readJdbcTemplate.update("INSERT INTO samples (name, age, status) VALUES ('reader-only', 22, '${SampleStatus.ACTIVE.value}')")
+        writeJdbcTemplate.update("INSERT INTO samples (name, age, status) VALUES ('writer-only', 11, 'active')")
+        readJdbcTemplate.update("INSERT INTO samples (name, age, status) VALUES ('reader-only', 22, 'active')")
     }
 
     @Test
@@ -55,10 +59,13 @@ class ReadWriteDatabaseRoutingIntegrationTests {
             .uri("/sample/$API_VERSION_V1/samples")
             .exchange()
             .expectStatus().isOk
-            .expectBody()
-            .jsonPath("$").isArray
-            .jsonPath("$[0].name").isEqualTo("reader-only")
-            .jsonPath("$[0].age").isEqualTo(22)
-            .jsonPath("$[1]").doesNotExist()
+            .expectBodyList<SampleResponse>()
+            .hasSize(1)
+            .consumeWith<WebTestClient.ListBodySpec<SampleResponse>> { result ->
+                val list = assertNotNull(result.responseBody)
+                assertEquals("reader-only", list[0].name)
+                assertEquals(22, list[0].age)
+                assertEquals(SampleStatus.ACTIVE, list[0].status)
+            }
     }
 }

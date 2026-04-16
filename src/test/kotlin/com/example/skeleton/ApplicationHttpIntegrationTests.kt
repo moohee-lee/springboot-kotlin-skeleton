@@ -1,7 +1,10 @@
 package com.example.skeleton
 
-import com.example.skeleton.common.config.TraceIdWebFilter.Companion.TRACE_ID_HEADER
+import com.example.skeleton.adapter.input.web.sample.protocol.CreateSampleRequest
+import com.example.skeleton.adapter.input.web.sample.protocol.SampleResponse
+import com.example.skeleton.adapter.input.web.sample.protocol.UpdateSampleRequest
 import com.example.skeleton.common.constant.CommonConstant.API_VERSION_V1
+import com.example.skeleton.common.errors.ApiErrorResponse
 import com.example.skeleton.common.errors.CommonErrorCode
 import com.example.skeleton.common.errors.ErrorSource
 import com.example.skeleton.common.errors.SampleErrorCode
@@ -17,7 +20,12 @@ import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.annotation.DirtiesContext
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.web.reactive.server.WebTestClient
+import org.springframework.test.web.reactive.server.expectBody
+import org.springframework.test.web.reactive.server.expectBodyList
 import javax.sql.DataSource
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
@@ -53,73 +61,92 @@ class ApplicationHttpIntegrationTests {
 
     @Test
     fun `POST creates a sample and returns it`() {
+        val request = CreateSampleRequest(name = "Alice", age = 30, status = SampleStatus.ACTIVE)
+
         webTestClient.post()
             .uri("/sample/$API_VERSION_V1/samples")
             .contentType(MediaType.APPLICATION_JSON)
-            .bodyValue("""{"name":"Alice","age":30,"status":"${SampleStatus.ACTIVE.name}"}""")
+            .bodyValue(request)
             .exchange()
             .expectStatus().isOk
-            .expectBody()
-            .jsonPath("$.id").isNotEmpty
-            .jsonPath("$.name").isEqualTo("Alice")
-            .jsonPath("$.age").isEqualTo(30)
-            .jsonPath("$.status").isEqualTo(SampleStatus.ACTIVE.name)
+            .expectBody<SampleResponse>()
+            .consumeWith { result ->
+                val response = assertNotNull(result.responseBody)
+                assertNotNull(response.id)
+                assertEquals("Alice", response.name)
+                assertEquals(30, response.age)
+                assertEquals(SampleStatus.ACTIVE, response.status)
+            }
     }
 
     @Test
     fun `GET by id returns existing sample`() {
         // GET 은 read DB 에서 조회
-        readJdbc.update("INSERT INTO samples (id, name, age, status) VALUES (1, 'Bob', 25, '${SampleStatus.ACTIVE.value}')")
+        readJdbc.update("INSERT INTO samples (id, name, age, status) VALUES (1, 'Bob', 25, 'active')")
 
         webTestClient.get()
             .uri("/sample/$API_VERSION_V1/samples/1")
             .exchange()
             .expectStatus().isOk
-            .expectBody()
-            .jsonPath("$.id").isEqualTo(1)
-            .jsonPath("$.name").isEqualTo("Bob")
-            .jsonPath("$.age").isEqualTo(25)
+            .expectBody<SampleResponse>()
+            .consumeWith { result ->
+                val response = assertNotNull(result.responseBody)
+                assertEquals(1L, response.id)
+                assertEquals("Bob", response.name)
+                assertEquals(25, response.age)
+                assertEquals(SampleStatus.ACTIVE, response.status)
+            }
     }
 
     @Test
     fun `GET search with query params filters results`() {
         // GET 은 read DB 에서 조회
-        readJdbc.update("INSERT INTO samples (name, age, status) VALUES ('Alice', 30, '${SampleStatus.ACTIVE.value}')")
-        readJdbc.update("INSERT INTO samples (name, age, status) VALUES ('Bob', 20, '${SampleStatus.INACTIVE.value}')")
-        readJdbc.update("INSERT INTO samples (name, age, status) VALUES ('Charlie', 40, '${SampleStatus.ACTIVE.value}')")
+        readJdbc.update("INSERT INTO samples (name, age, status) VALUES ('Alice', 30, 'active')")
+        readJdbc.update("INSERT INTO samples (name, age, status) VALUES ('Bob', 20, 'inactive')")
+        readJdbc.update("INSERT INTO samples (name, age, status) VALUES ('Charlie', 40, 'active')")
 
         webTestClient.get()
             .uri("/sample/$API_VERSION_V1/samples?minAge=25&maxAge=35")
             .exchange()
             .expectStatus().isOk
-            .expectBody()
-            .jsonPath("$").isArray
-            .jsonPath("$[0].name").isEqualTo("Alice")
-            .jsonPath("$[1]").doesNotExist()
+            .expectBodyList<SampleResponse>()
+            .hasSize(1)
+            .consumeWith<WebTestClient.ListBodySpec<SampleResponse>> { result ->
+                val list = assertNotNull(result.responseBody)
+                assertEquals("Alice", list[0].name)
+                assertEquals(30, list[0].age)
+                assertEquals(SampleStatus.ACTIVE, list[0].status)
+            }
     }
 
     @Test
     fun `PUT updates an existing sample`() {
         // PUT 은 write DB 에서 수정
-        writeJdbc.update("INSERT INTO samples (id, name, age, status) VALUES (1, 'Old', 10, '${SampleStatus.ACTIVE.value}')")
+        writeJdbc.update("INSERT INTO samples (id, name, age, status) VALUES (1, 'Old', 10, 'active')")
+
+        val request = UpdateSampleRequest(name = "Updated", age = 99, status = SampleStatus.INACTIVE)
 
         webTestClient.put()
             .uri("/sample/$API_VERSION_V1/samples/1")
             .header("X-Modified-By", "tester")
             .contentType(MediaType.APPLICATION_JSON)
-            .bodyValue("""{"name":"Updated","age":99,"status":"${SampleStatus.INACTIVE.name}"}""")
+            .bodyValue(request)
             .exchange()
             .expectStatus().isOk
-            .expectBody()
-            .jsonPath("$.id").isEqualTo(1)
-            .jsonPath("$.name").isEqualTo("Updated")
-            .jsonPath("$.age").isEqualTo(99)
+            .expectBody<SampleResponse>()
+            .consumeWith { result ->
+                val response = assertNotNull(result.responseBody)
+                assertEquals(1L, response.id)
+                assertEquals("Updated", response.name)
+                assertEquals(99, response.age)
+                assertEquals(SampleStatus.INACTIVE, response.status)
+            }
     }
 
     @Test
     fun `DELETE removes an existing sample`() {
         // DELETE 는 write DB 에서 삭제
-        writeJdbc.update("INSERT INTO samples (id, name, age, status) VALUES (1, 'ToDelete', 1, '${SampleStatus.ACTIVE.value}')")
+        writeJdbc.update("INSERT INTO samples (id, name, age, status) VALUES (1, 'ToDelete', 1, 'active')")
 
         webTestClient.delete()
             .uri("/sample/$API_VERSION_V1/samples/1")
@@ -135,24 +162,34 @@ class ApplicationHttpIntegrationTests {
             .uri("/sample/$API_VERSION_V1/samples/999")
             .exchange()
             .expectStatus().isNotFound
-            .expectHeader().exists(TRACE_ID_HEADER)
-            .expectBody()
-            .jsonPath("$.code").isEqualTo(SampleErrorCode.SAMPLE_NOT_FOUND.code)
-            .jsonPath("$.traceId").exists()
+            .expectHeader().exists("X-Trace-Id")
+            .expectBody<ApiErrorResponse>()
+            .consumeWith { result ->
+                val error = assertNotNull(result.responseBody)
+                assertEquals(SampleErrorCode.SAMPLE_NOT_FOUND.code, error.code)
+                assertNotNull(error.traceId)
+            }
     }
 
     @Test
     fun `PUT returns 400 when X-Modified-By header is missing`() {
+        val request = UpdateSampleRequest(name = "Test", age = 20, status = SampleStatus.ACTIVE)
+
         webTestClient.put()
             .uri("/sample/$API_VERSION_V1/samples/1")
             .contentType(MediaType.APPLICATION_JSON)
-            .bodyValue("""{"name":"Test","age":20,"status":${SampleStatus.ACTIVE.name}}""")
+            .bodyValue(request)
             .exchange()
             .expectStatus().isBadRequest
-            .expectBody()
-            .jsonPath("$.code").isEqualTo(CommonErrorCode.INVALID_HEADER_PARAMETER.code)
-            .jsonPath("$.errors[0].source").isEqualTo(ErrorSource.HEADER.wireName)
-            .jsonPath("$.errors[0].field").isEqualTo("X-Modified-By")
+            .expectBody<ApiErrorResponse>()
+            .consumeWith { result ->
+                val error = assertNotNull(result.responseBody)
+                assertEquals(CommonErrorCode.INVALID_HEADER_PARAMETER.code, error.code)
+                val errors = error.errors
+                assertNotNull(errors)
+                assertEquals(ErrorSource.HEADER.wireName, errors[0].source)
+                assertEquals("X-Modified-By", errors[0].field)
+            }
     }
 
     @Test
@@ -163,22 +200,32 @@ class ApplicationHttpIntegrationTests {
             .contentType(MediaType.APPLICATION_JSON)
             .exchange()
             .expectStatus().isBadRequest
-            .expectBody()
-            .jsonPath("$.code").isEqualTo(CommonErrorCode.EMPTY_BODY.code)
+            .expectBody<ApiErrorResponse>()
+            .consumeWith { result ->
+                val error = assertNotNull(result.responseBody)
+                assertEquals(CommonErrorCode.EMPTY_BODY.code, error.code)
+            }
     }
 
     @Test
     fun `POST returns validation errors when body is invalid`() {
+        val request = CreateSampleRequest(name = "", age = -1, status = SampleStatus.ACTIVE)
+
         webTestClient.post()
             .uri("/sample/$API_VERSION_V1/samples")
             .contentType(MediaType.APPLICATION_JSON)
-            .bodyValue("""{"name":"","age":-1,"status":"${SampleStatus.ACTIVE.name}"}""")
+            .bodyValue(request)
             .exchange()
             .expectStatus().isBadRequest
-            .expectBody()
-            .jsonPath("$.code").isEqualTo(CommonErrorCode.VALIDATION_FAIL.code)
-            .jsonPath("$.errors").isArray
-            .jsonPath("$.errors[0].source").isEqualTo(ErrorSource.BODY.wireName)
+            .expectBody<ApiErrorResponse>()
+            .consumeWith { result ->
+                val error = assertNotNull(result.responseBody)
+                assertEquals(CommonErrorCode.VALIDATION_FAIL.code, error.code)
+                val errors = error.errors
+                assertNotNull(errors)
+                assertTrue(errors.isNotEmpty())
+                assertTrue(errors.all { it.source == ErrorSource.BODY.wireName })
+            }
     }
 
     @Test
@@ -187,8 +234,11 @@ class ApplicationHttpIntegrationTests {
             .uri("/sample/$API_VERSION_V1/samples/999")
             .exchange()
             .expectStatus().isNotFound
-            .expectBody()
-            .jsonPath("$.code").isEqualTo(SampleErrorCode.SAMPLE_NOT_FOUND.code)
+            .expectBody<ApiErrorResponse>()
+            .consumeWith { result ->
+                val error = assertNotNull(result.responseBody)
+                assertEquals(SampleErrorCode.SAMPLE_NOT_FOUND.code, error.code)
+            }
     }
 
     @Test
@@ -197,8 +247,11 @@ class ApplicationHttpIntegrationTests {
             .uri("/sample/$API_VERSION_V1/samples/abc")
             .exchange()
             .expectStatus().isBadRequest
-            .expectBody()
-            .jsonPath("$.code").isEqualTo(CommonErrorCode.INVALID_PARAMETER.code)
+            .expectBody<ApiErrorResponse>()
+            .consumeWith { result ->
+                val error = assertNotNull(result.responseBody)
+                assertEquals(CommonErrorCode.INVALID_PARAMETER.code, error.code)
+            }
     }
 
     @Test
@@ -207,10 +260,15 @@ class ApplicationHttpIntegrationTests {
             .uri("/sample/$API_VERSION_V1/samples?minAge=abc")
             .exchange()
             .expectStatus().isBadRequest
-            .expectBody()
-            .jsonPath("$.code").isEqualTo(CommonErrorCode.INVALID_PARAMETER.code)
-            .jsonPath("$.errors[0].source").isEqualTo(ErrorSource.QUERY.wireName)
-            .jsonPath("$.errors[0].field").isEqualTo("minAge")
+            .expectBody<ApiErrorResponse>()
+            .consumeWith { result ->
+                val error = assertNotNull(result.responseBody)
+                assertEquals(CommonErrorCode.INVALID_PARAMETER.code, error.code)
+                val errors = error.errors
+                assertNotNull(errors)
+                assertEquals(ErrorSource.QUERY.wireName, errors[0].source)
+                assertEquals("minAge", errors[0].field)
+            }
     }
 
     // ── 공통 에러 ───────────────────────────────────────────────────────────
@@ -221,10 +279,13 @@ class ApplicationHttpIntegrationTests {
             .uri("/unknown")
             .exchange()
             .expectStatus().isNotFound
-            .expectHeader().exists(TRACE_ID_HEADER)
-            .expectBody()
-            .jsonPath("$.code").isEqualTo(CommonErrorCode.NOT_FOUND.code)
-            .jsonPath("$.traceId").exists()
+            .expectHeader().exists("X-Trace-Id")
+            .expectBody<ApiErrorResponse>()
+            .consumeWith { result ->
+                val error = assertNotNull(result.responseBody)
+                assertEquals(CommonErrorCode.NOT_FOUND.code, error.code)
+                assertNotNull(error.traceId)
+            }
     }
 
     @Test
@@ -232,11 +293,14 @@ class ApplicationHttpIntegrationTests {
         val traceId = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
         webTestClient.get()
             .uri("/unknown")
-            .header(TRACE_ID_HEADER, traceId)
+            .header("X-Trace-Id", traceId)
             .exchange()
             .expectStatus().isNotFound
-            .expectHeader().valueEquals(TRACE_ID_HEADER, traceId)
-            .expectBody()
-            .jsonPath("$.traceId").isEqualTo(traceId)
+            .expectHeader().valueEquals("X-Trace-Id", traceId)
+            .expectBody<ApiErrorResponse>()
+            .consumeWith { result ->
+                val error = assertNotNull(result.responseBody)
+                assertEquals(traceId, error.traceId)
+            }
     }
 }
