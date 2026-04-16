@@ -82,7 +82,7 @@ class ApplicationHttpIntegrationTests {
     @Test
     fun `GET by id returns existing sample`() {
         // GET 은 read DB 에서 조회
-        readJdbc.update("INSERT INTO samples (id, name, age, status) VALUES (1, 'Bob', 25, 'active')")
+        readJdbc.update("INSERT INTO samples (id, name, age, status) VALUES (1, 'Bob', 25, '${SampleStatus.ACTIVE.value}')")
 
         webTestClient.get()
             .uri("/sample/$API_VERSION_V1/samples/1")
@@ -101,9 +101,9 @@ class ApplicationHttpIntegrationTests {
     @Test
     fun `GET search with query params filters results`() {
         // GET 은 read DB 에서 조회
-        readJdbc.update("INSERT INTO samples (name, age, status) VALUES ('Alice', 30, 'active')")
-        readJdbc.update("INSERT INTO samples (name, age, status) VALUES ('Bob', 20, 'inactive')")
-        readJdbc.update("INSERT INTO samples (name, age, status) VALUES ('Charlie', 40, 'active')")
+        readJdbc.update("INSERT INTO samples (name, age, status) VALUES ('Alice', 30, '${SampleStatus.ACTIVE.value}')")
+        readJdbc.update("INSERT INTO samples (name, age, status) VALUES ('Bob', 20, '${SampleStatus.INACTIVE.value}')")
+        readJdbc.update("INSERT INTO samples (name, age, status) VALUES ('Charlie', 40, '${SampleStatus.ACTIVE.value}')")
 
         webTestClient.get()
             .uri("/sample/$API_VERSION_V1/samples?minAge=25&maxAge=35")
@@ -122,7 +122,7 @@ class ApplicationHttpIntegrationTests {
     @Test
     fun `PUT updates an existing sample`() {
         // PUT 은 write DB 에서 수정
-        writeJdbc.update("INSERT INTO samples (id, name, age, status) VALUES (1, 'Old', 10, 'active')")
+        writeJdbc.update("INSERT INTO samples (id, name, age, status) VALUES (1, 'Old', 10, '${SampleStatus.ACTIVE.value}')")
 
         val request = UpdateSampleRequest(name = "Updated", age = 99, status = SampleStatus.INACTIVE)
 
@@ -146,7 +146,7 @@ class ApplicationHttpIntegrationTests {
     @Test
     fun `DELETE removes an existing sample`() {
         // DELETE 는 write DB 에서 삭제
-        writeJdbc.update("INSERT INTO samples (id, name, age, status) VALUES (1, 'ToDelete', 1, 'active')")
+        writeJdbc.update("INSERT INTO samples (id, name, age, status) VALUES (1, 'ToDelete', 1, '${SampleStatus.ACTIVE.value}')")
 
         webTestClient.delete()
             .uri("/sample/$API_VERSION_V1/samples/1")
