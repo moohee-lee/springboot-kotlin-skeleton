@@ -56,4 +56,4 @@ ktlint:
     active: false
   TrailingCommaOnCallSite:
     # Kotlin style guide: call site는 개발자 재량 → 강제하지 않음
-    active: false
+    active: true
