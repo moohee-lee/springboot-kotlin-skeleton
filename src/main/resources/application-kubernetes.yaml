@@ -8,7 +8,7 @@ spring:
         enabled: true
         namespace: ${KUBERNETES_NAMESPACE}
         sources:
-          - name: kcp-network-skeleton
+          - name: ns-network-skeleton
             namespace: ${KUBERNETES_NAMESPACE}
-          - name: kcp-network-postgres
+          - name: ns-vpc-postgres
             namespace: ${KUBERNETES_NAMESPACE}
