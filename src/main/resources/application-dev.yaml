@@ -12,6 +12,6 @@ spring:
 
 logging:
   level:
-    com.ktcloud.network.consumer: DEBUG
+    com.ktcloud.network.skeleton: DEBUG
     org.springframework.transaction: DEBUG
     org.springframework.web.reactive.function.client: DEBUG
