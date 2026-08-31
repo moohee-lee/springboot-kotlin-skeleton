@@ -5,7 +5,7 @@ env:
   HARBOR_PROJECT: kt-cloud-service
   HARBOR_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
   HARBOR_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
-  IMAGE_NAME: kcp-network-consumer
+  IMAGE_NAME: kcp-network-skeleton
 
 on:
   workflow_dispatch:
