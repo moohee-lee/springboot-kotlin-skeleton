@@ -40,6 +40,12 @@ repositories {
     mavenCentral()
 }
 
+dependencyManagement {
+    imports {
+        mavenBom("org.springframework.cloud:spring-cloud-dependencies:${DependencyVersions.SPRING_CLOUD}")
+    }
+}
+
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-jooq")
@@ -53,6 +59,8 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-slf4j")
     implementation("tools.jackson.module:jackson-module-kotlin")
+    implementation("org.springframework.cloud:spring-cloud-starter-vault-config")
+    implementation("org.springframework.cloud:spring-cloud-starter-kubernetes-client-config")
 
     implementation(
         "net.logstash.logback:logstash-logback-encoder:${DependencyVersions.LOGSTASH_LOGBACK_ENCODER}",

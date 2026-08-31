@@ -3,4 +3,6 @@ object DependencyVersions {
     const val MOCKK = "1.14.11"
     const val LOGSTASH_LOGBACK_ENCODER = "9.0"
     const val TESTCONTAINERS = "2.0.5"
+
+    const val SPRING_CLOUD = "2025.1.2"
 }
