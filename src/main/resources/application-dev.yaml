@@ -4,7 +4,7 @@ spring:
       - vault://secret/mgmt01/ns-vpc/postgresql?prefix=db.
   cloud:
     vault:
-      uri: https://secret-dx-dev-md.ktcloudinfra.com
+      uri: ${VAULT_URI}
       authentication: kubernetes
       kubernetes:
         role: role-vpc
