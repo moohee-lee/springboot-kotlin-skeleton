@@ -2,6 +2,7 @@ spring:
   config:
     import:
       - vault://secret/mgmt01/ns-vpc/postgresql?prefix=db.
+      - vault://secret/mgmt01/ns-vpc/redis
   cloud:
     vault:
       uri: ${VAULT_URI}

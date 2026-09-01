@@ -1,0 +1,18 @@
+spring:
+  config:
+    import:
+      - vault://secret/mgmt02/ns-vpc/postgresql?prefix=db.
+      - vault://secret/mgmt02/ns-vpc/redis
+  cloud:
+    vault:
+      uri: ${VAULT_URI}
+      authentication: kubernetes
+      kubernetes:
+        role: role-vpc
+        kubernetes-path: mgmt02
+
+logging:
+  level:
+    com.ktcloud.network.skeleton: INFO
+    org.springframework.transaction: INFO
+    org.springframework.web.reactive.function.client: DEBUG
