@@ -1,8 +1,20 @@
+# spring-cloud-kubernetes 가 클러스터 내부에서 'kubernetes' 프로필을 활성 프로필 맨 뒤에 붙인다.
+# 즉 이 파일이 application-<env>.yaml 보다 우선순위가 높으므로 환경별 값은 여기에 두지 않는다.
+# 환경별로 달라지는 값은 application-<env>.yaml 의 vault.mount 로만 주입한다.
 spring:
   config:
     import:
+      # 뒤에 선언한 import 가 우선순위가 높다. ConfigMap 이 Vault 를 덮어쓰는 기존 순서 유지.
+      - vault://secret/${VAULT_CLUSTER}/ns-vpc/postgresql?prefix=db.
+      - vault://secret/${VAULT_CLUSTER}/ns-vpc/redis
       - "kubernetes:"
   cloud:
+    vault:
+      uri: ${VAULT_URI}
+      authentication: kubernetes
+      kubernetes:
+        role: role-vpc
+        kubernetes-path: ${vault.mount}
     kubernetes:
       config:
         enabled: true
