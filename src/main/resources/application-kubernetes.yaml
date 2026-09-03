@@ -19,5 +19,5 @@ spring:
         sources:
           - name: ns-network-skeleton
             namespace: ${KUBERNETES_NAMESPACE}
-          - name: ns-vpc-postgres
+          - name: network-regional-postgres
             namespace: ${KUBERNETES_NAMESPACE}
