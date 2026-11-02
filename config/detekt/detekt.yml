@@ -10,6 +10,7 @@ complexity:
     ignoreDefaultParameters: true
     ignoreDataClasses: true
   TooManyFunctions:
+    allowedFunctionsPerFile: 20
     allowedFunctionsPerClass: 20
     allowedFunctionsPerInterface: 20
 
