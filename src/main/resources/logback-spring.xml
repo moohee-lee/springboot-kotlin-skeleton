@@ -7,89 +7,15 @@
 
     <springProfile name="local|test">
         <property name="LOG_DIR" value="logs"/>
-        <property
-            name="LOG_PATTERN"
-            value="%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(%-5level) %clr(thread=){faint}%clr(%-20.20thread){cyan} %clr(class=){faint}%clr(%logger{36}){blue} %clr(trace_id=){faint}%clr(%X{traceId:-}){magenta} %clr(msg=){faint}%msg%n"
-        />
     </springProfile>
 
     <springProfile name="!(local|test)">
         <property name="LOG_DIR" value="/logs/apps"/>
-        <property
-            name="LOG_PATTERN"
-            value="%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %-5level thread=%-20.20thread class=%logger{36} trace_id=%X{traceId:-} msg=%msg%n"
-        />
     </springProfile>
 
-    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
-            <pattern>${LOG_PATTERN}</pattern>
-        </encoder>
-    </appender>
-
-    <springProfile name="local|test">
-        <logger name="api.raw" level="OFF" additivity="false"/>
-
-        <root level="INFO">
-            <appender-ref ref="CONSOLE"/>
-        </root>
-    </springProfile>
-
+    <include resource="logback/logback-application.xml"/>
     <springProfile name="!(local|test)">
-        <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-            <file>${LOG_DIR}/${LOG_FILE}</file>
-            <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
-                <pattern>${LOG_PATTERN}</pattern>
-            </encoder>
-            <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-                <fileNamePattern>${LOG_DIR}/${APP_NAME}.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
-                <maxFileSize>100MB</maxFileSize>
-                <maxHistory>7</maxHistory>
-                <totalSizeCap>3GB</totalSizeCap>
-            </rollingPolicy>
-        </appender>
-
-        <appender name="ASYNC_FILE" class="ch.qos.logback.classic.AsyncAppender">
-            <queueSize>8192</queueSize>
-            <discardingThreshold>0</discardingThreshold>
-            <neverBlock>false</neverBlock>
-            <appender-ref ref="FILE"/>
-        </appender>
-
-        <appender name="API_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-            <file>${LOG_DIR}/api.log</file>
-            <append>true</append>
-            <immediateFlush>false</immediateFlush>
-            <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
-                <providers>
-                    <logstashMarkers/>
-                </providers>
-                <encoding>UTF-8</encoding>
-                <lineSeparator>UNIX</lineSeparator>
-            </encoder>
-            <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-                <fileNamePattern>${LOG_DIR}/api.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
-                <maxFileSize>100MB</maxFileSize>
-                <maxHistory>7</maxHistory>
-                <totalSizeCap>3GB</totalSizeCap>
-            </rollingPolicy>
-        </appender>
-
-        <appender name="ASYNC_API_FILE" class="ch.qos.logback.classic.AsyncAppender">
-            <queueSize>4096</queueSize>
-            <discardingThreshold>0</discardingThreshold>
-            <neverBlock>false</neverBlock>
-            <maxFlushTime>1000</maxFlushTime>
-            <appender-ref ref="API_FILE"/>
-        </appender>
-
-        <logger name="api.raw" level="INFO" additivity="false">
-            <appender-ref ref="ASYNC_API_FILE"/>
-        </logger>
-
-        <root level="INFO">
-            <appender-ref ref="CONSOLE"/>
-<!--            <appender-ref ref="ASYNC_FILE"/>-->
-        </root>
+        <include resource="logback/logback-api.xml"/>
+        <include resource="logback/logback-access.xml"/>
     </springProfile>
 </configuration>

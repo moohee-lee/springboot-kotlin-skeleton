@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<included>
+    <appender name="ACCESS_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/access.log</file>
+        <immediateFlush>false</immediateFlush>
+        <bufferSize>${ACCESS_LOG_BUFFER_SIZE:-64KB}</bufferSize>
+        <encoder>
+            <charset>UTF-8</charset>
+            <pattern>%msg%n</pattern>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}/access.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>100MB</maxFileSize>
+            <maxHistory>7</maxHistory>
+            <totalSizeCap>3GB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+
+    <appender name="ASYNC_ACCESS_FILE" class="net.logstash.logback.appender.LoggingEventAsyncDisruptorAppender">
+        <ringBufferSize>${ACCESS_LOG_RING_BUFFER_SIZE:-8192}</ringBufferSize>
+        <waitStrategyType>${ACCESS_LOG_WAIT_STRATEGY:-sleeping{0,2000000}}</waitStrategyType>
+        <appendTimeout>${ACCESS_LOG_APPEND_TIMEOUT:-1 millisecond}</appendTimeout>
+        <shutdownGracePeriod>5 seconds</shutdownGracePeriod>
+        <appender-ref ref="ACCESS_FILE"/>
+    </appender>
+
+    <logger name="reactor.netty.http.server.AccessLog" level="INFO" additivity="false">
+        <appender-ref ref="ASYNC_ACCESS_FILE"/>
+    </logger>
+</included>

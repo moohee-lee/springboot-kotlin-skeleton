@@ -45,6 +45,9 @@ out/
 ### generated files ###
 /src/main/generated/
 
+### Local logs ###
+/logs/
+
 ### buildSrc
 !buildSrc/src
 !buildSrc/build.gradle.kts

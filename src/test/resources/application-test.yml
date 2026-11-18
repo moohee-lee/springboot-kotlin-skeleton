@@ -18,3 +18,12 @@ spring:
         driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
         minimum-idle: 1
         maximum-pool-size: 3
+
+logging:
+  level:
+    api.raw: "OFF"
+    reactor.netty.http.server.AccessLog: "OFF"
+    com.example.skeleton: DEBUG
+    org.springframework: ERROR
+    org.springframework.web.reactive.function.client: DEBUG
+    org.springframework.transaction: DEBUG

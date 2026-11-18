@@ -51,6 +51,8 @@ logging:
   pattern:
     level: "%5p [traceId:%X{traceId:-}]"
   level:
+    api.raw: "OFF"
+    reactor.netty.http.server.AccessLog: "OFF"
     com.example.skeleton: DEBUG
     org.springframework: ERROR
     org.springframework.web.reactive.function.client: DEBUG
